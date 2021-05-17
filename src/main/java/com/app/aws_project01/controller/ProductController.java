@@ -1,7 +1,9 @@
 package com.app.aws_project01.controller;
 
+import com.app.aws_project01.enums.EventType;
 import com.app.aws_project01.model.Product;
 import com.app.aws_project01.repository.ProductRepository;
+import com.app.aws_project01.service.ProductPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,10 +15,12 @@ import java.util.Optional;
 @RequestMapping("api/products")
 public class ProductController {
     private ProductRepository repository;
+    private ProductPublisher productPublisher;
 
     @Autowired
-    public ProductController(ProductRepository repository) {
+    public ProductController(ProductRepository repository, ProductPublisher productPublisher) {
         this.repository = repository;
+        this.productPublisher = productPublisher;
     }
 
     @GetMapping
@@ -35,6 +39,7 @@ public class ProductController {
     public ResponseEntity<Product> saveProduct(@RequestBody Product product) {
         Product productCreated = repository.save(product);
 
+        productPublisher.publishProductEvent(productCreated, EventType.PRODUCT_CREATED, "gui");
         return new ResponseEntity<Product>(productCreated, HttpStatus.CREATED);
     }
 
@@ -42,6 +47,9 @@ public class ProductController {
     public ResponseEntity<Product> updateProduct(@RequestBody Product product, @PathVariable("{id}") long id) {
         Optional<Product> optProduct = repository.findById(id);
         if (optProduct.isPresent()) {
+
+            productPublisher.publishProductEvent(product, EventType.PRODUCT_UPDATE, "gui");
+
             return new ResponseEntity<Product>(repository.save(product), HttpStatus.OK);
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -54,6 +62,8 @@ public class ProductController {
         if (optProduct.isPresent()) {
             Product product = optProduct.get();
             repository.delete(product);
+
+            productPublisher.publishProductEvent(product, EventType.PRODUCT_DELETED, "gui");
 
             return new ResponseEntity<Product>(product, HttpStatus.OK);
         } else {
